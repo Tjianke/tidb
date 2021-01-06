@@ -15,6 +15,7 @@ package expression
 
 import (
 	"fmt"
+	"testing"
 
 	. "github.com/pingcap/check"
 	"github.com/pingcap/parser/model"
@@ -227,5 +228,37 @@ func (s *testEvaluatorSuite) TestColHybird(c *C) {
 		v, _, err := col.EvalString(ctx, row)
 		c.Assert(err, IsNil)
 		c.Assert(v, Equals, result.GetString(i))
+	}
+}
+
+func benchmarkVecEvalReal(b *testing.B){
+	ctx := mock.NewContext()
+
+	batchSize := []int{
+		10,
+		100,
+		1000,
+		100000,
+	}
+
+	for i:=0; i<len(batchSize); i++ {
+		ft := types.NewFieldType(mysql.TypeFloat)
+		col := &Column{RetType: ft, Index: 0}
+		input := chunk.New([]*types.FieldType{ft}, batchSize[i], batchSize[i])
+		for i := 0; i < batchSize[i]; i++ {
+			input.AppendFloat32(0, float32(i))
+		}
+		result, err := newBuffer(types.ETReal, batchSize[i])
+		if err != nil {
+			panic(err)
+		}
+		b.Run(fmt.Sprintf("origin-%d", batchSize[i]), func(b *testing.B){
+			col.VecEvalReal(ctx, input, result)
+		})
+		result, err = newBuffer(types.ETReal, batchSize[i])
+		b.ResetTimer()
+		b.Run(fmt.Sprintf("optimized-%d", batchSize[i]), func(b *testing.B){
+			col.VecEvalRealOptimized(ctx, input, result)
+		})
 	}
 }
