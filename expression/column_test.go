@@ -257,8 +257,5 @@ func benchmarkVecEvalReal(b *testing.B){
 		})
 		result, err = newBuffer(types.ETReal, batchSize[i])
 		b.ResetTimer()
-		b.Run(fmt.Sprintf("optimized-%d", batchSize[i]), func(b *testing.B){
-			col.VecEvalRealOptimized(ctx, input, result)
-		})
 	}
 }
